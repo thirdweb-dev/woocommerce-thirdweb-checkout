@@ -1,0 +1,29 @@
+{
+  "name": "thirdweb-woocommerce-checkout",
+  "version": "1.0.0",
+  "description": "WooCommerce stablecoin checkout powered by thirdweb",
+  "packageManager": "pnpm@10.25.0",
+  "scripts": {
+    "build": "wp-scripts build src/checkout-block/index.tsx --output-path=build",
+    "start": "wp-scripts start src/checkout-block/index.tsx --output-path=build",
+    "check-engines": "wp-scripts check-engines",
+    "check-licenses": "wp-scripts check-licenses",
+    "lint:js": "wp-scripts lint-js",
+    "lint:css": "wp-scripts lint-style",
+    "packages-update": "wp-scripts packages-update"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/wordpress__blocks": "^12.5.18",
+    "@wordpress/html-entities": "^4.36.0",
+    "@wordpress/scripts": "^31.1.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "thirdweb": "^5.116.1"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  }
+}
