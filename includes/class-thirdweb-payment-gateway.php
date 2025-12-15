@@ -39,7 +39,6 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
         $this->seller_wallet  = $this->get_option('seller_wallet');
         $this->chain_id       = $this->get_option('chain_id');
         $this->token_address  = $this->get_option('token_address');
-        $this->webhook_secret = $this->get_option('webhook_secret');
 
         // Save settings hook
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
@@ -72,42 +71,45 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
             'client_id' => [
                 'title'       => __('thirdweb Client ID', 'thirdweb-wc'),
                 'type'        => 'text',
-                'description' => __('Your thirdweb Client ID from the dashboard. Can also be set via .env file as THIRDWEB_CLIENT_ID.', 'thirdweb-wc'),
+                'description' => sprintf(
+                    __('Get your Client ID from <a href="%s" target="_blank">thirdweb Dashboard</a>. Create a new project if you haven\'t already. Can also be set via .env file for development.', 'thirdweb-wc'),
+                    'https://thirdweb.com/dashboard'
+                ),
                 'default'     => thirdweb_wc_get_env('THIRDWEB_CLIENT_ID', ''),
-                'desc_tip'    => true,
+                'placeholder' => __('e.g., abc123def456...', 'thirdweb-wc'),
             ],
             'seller_wallet' => [
                 'title'       => __('Seller Wallet Address', 'thirdweb-wc'),
                 'type'        => 'text',
-                'description' => __('Wallet address to receive payments', 'thirdweb-wc'),
+                'description' => sprintf(
+                    __('Your project wallet address that will receive all payments. Get this from your <a href="%s" target="_blank">thirdweb project dashboard</a>.', 'thirdweb-wc'),
+                    'https://thirdweb.com/dashboard'
+                ),
                 'default'     => '',
-                'desc_tip'    => true,
+                'placeholder' => __('0x...', 'thirdweb-wc'),
+                'custom_attributes' => [
+                    'pattern' => '^0x[a-fA-F0-9]{40}$',
+                ],
             ],
             'chain_id' => [
-                'title'       => __('Blockchain Network', 'thirdweb-wc'),
-                'type'        => 'select',
-                'description' => __('Select the blockchain to receive payments on', 'thirdweb-wc'),
+                'title'       => __('Chain ID', 'thirdweb-wc'),
+                'type'        => 'text',
+                'description' => sprintf(
+                    __('The blockchain network chain ID to receive payments on. Default is 8453 (Base). Common chains: 1 (Ethereum), 8453 (Base), 137 (Polygon), 42161 (Arbitrum), 10 (Optimism). See <a href="%s" target="_blank">chainlist.org</a> for more chains.', 'thirdweb-wc'),
+                    'https://chainlist.org'
+                ),
                 'default'     => '8453', // Base
-                'options'     => [
-                    '1'     => 'Ethereum Mainnet',
-                    '8453'  => 'Base',
-                    '42161' => 'Arbitrum One',
-                    '137'   => 'Polygon',
-                    '10'    => 'Optimism',
+                'placeholder' => __('8453', 'thirdweb-wc'),
+                'custom_attributes' => [
+                    'pattern' => '[0-9]+',
                 ],
             ],
             'token_address' => [
                 'title'       => __('Token Address (Optional)', 'thirdweb-wc'),
                 'type'        => 'text',
-                'description' => __('USDC/USDT contract address. Leave empty to accept native token (ETH).', 'thirdweb-wc'),
+                'description' => __('USDC/USDT contract address for the chain above. Make sure the token address matches your selected chain. Leave empty to accept the native token (ETH, MATIC, etc.). Default is USDC on Base (chain 8453).', 'thirdweb-wc'),
                 'default'     => '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
-                'desc_tip'    => true,
-            ],
-            'webhook_secret' => [
-                'title'       => __('Webhook Secret', 'thirdweb-wc'),
-                'type'        => 'password',
-                'description' => __('Secret key for verifying webhook signatures', 'thirdweb-wc'),
-                'default'     => '',
+                'placeholder' => __('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', 'thirdweb-wc'),
             ],
         ];
     }
@@ -212,18 +214,6 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
         // Additional verification: check recipient and amount in logs
         // This is simplified - production code should decode transfer events
         return true;
-    }
-
-    /**
-     * Verify webhook signature
-     */
-    public function verify_webhook_signature($payload, $signature) {
-        if (empty($this->webhook_secret)) {
-            return true; // Skip if not configured
-        }
-
-        $expected = hash_hmac('sha256', json_encode($payload), $this->webhook_secret);
-        return hash_equals($expected, $signature);
     }
 
     /**

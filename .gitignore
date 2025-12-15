@@ -11,6 +11,11 @@ dist/
 .env.local
 .env.*.local
 
+# Test app
+test-app/node_modules/
+test-app/.env
+test-app/dist/
+
 # IDE
 .vscode/
 .idea/

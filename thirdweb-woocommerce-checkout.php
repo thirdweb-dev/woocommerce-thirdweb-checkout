@@ -105,45 +105,55 @@ add_action('before_woocommerce_init', function() {
 });
 
 /**
- * Register webhook endpoint for payment verification
+ * Activation hook - show onboarding notice
  */
-add_action('rest_api_init', function() {
-    register_rest_route('thirdweb-wc/v1', '/webhook', [
-        'methods' => 'POST',
-        'callback' => 'thirdweb_wc_handle_webhook',
-        'permission_callback' => '__return_true', // Webhook verification happens in callback
-    ]);
+register_activation_hook(__FILE__, function() {
+    set_transient('thirdweb_wc_activation_notice', true, 60);
 });
 
 /**
- * Handle incoming webhooks from thirdweb
+ * Display activation notice with onboarding steps
  */
-function thirdweb_wc_handle_webhook(WP_REST_Request $request) {
-    $payload = $request->get_json_params();
-    
-    // Verify webhook signature (implement based on thirdweb webhook docs)
-    $signature = $request->get_header('x-thirdweb-signature');
-    $gateway = new WC_Thirdweb_Payment_Gateway();
-    
-    if (!$gateway->verify_webhook_signature($payload, $signature)) {
-        return new WP_REST_Response(['error' => 'Invalid signature'], 401);
+add_action('admin_notices', function() {
+    if (!get_transient('thirdweb_wc_activation_notice')) {
+        return;
     }
 
-    // Process the payment confirmation
-    if (isset($payload['event']) && $payload['event'] === 'payment.completed') {
-        $order_id = $payload['purchaseData']['orderId'] ?? null;
-        $tx_hash = $payload['transactionHash'] ?? null;
+    delete_transient('thirdweb_wc_activation_notice');
 
-        if ($order_id && $tx_hash) {
-            $order = wc_get_order($order_id);
-            if ($order && $order->get_status() === 'pending') {
-                $order->payment_complete($tx_hash);
-                $order->add_order_note(
-                    sprintf('Payment completed via thirdweb. Transaction: %s', $tx_hash)
-                );
-            }
-        }
-    }
-
-    return new WP_REST_Response(['success' => true], 200);
-}
+    $settings_url = admin_url('admin.php?page=wc-settings&tab=checkout&section=thirdweb_stablecoin');
+    ?>
+    <div class="notice notice-success is-dismissible">
+        <h2>🎉 thirdweb Stablecoin Checkout Activated!</h2>
+        <p><strong>Follow these steps to start accepting stablecoin payments:</strong></p>
+        <ol style="margin-left: 20px; line-height: 1.8;">
+            <li>
+                <strong>Create a thirdweb account:</strong>
+                Go to <a href="https://thirdweb.com/dashboard" target="_blank">thirdweb.com/dashboard</a>
+                to sign up or log in
+            </li>
+            <li>
+                <strong>Create a new project:</strong>
+                In the dashboard, create a new project and copy your <strong>Client ID</strong>
+            </li>
+            <li>
+                <strong>Get your project wallet address:</strong>
+                From your project, copy the <strong>wallet address</strong> that will receive funds
+            </li>
+            <li>
+                <strong>Configure the plugin:</strong>
+                Go to <a href="<?php echo esc_url($settings_url); ?>">WooCommerce → Settings → Payments → Stablecoin Payment</a>
+                and enter your Client ID and wallet address
+            </li>
+        </ol>
+        <p>
+            <a href="<?php echo esc_url($settings_url); ?>" class="button button-primary">
+                Configure Settings Now
+            </a>
+            <a href="https://portal.thirdweb.com/connect/checkout" target="_blank" class="button">
+                View Documentation
+            </a>
+        </p>
+    </div>
+    <?php
+});

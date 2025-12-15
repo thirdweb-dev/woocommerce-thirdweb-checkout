@@ -47,8 +47,9 @@ A WordPress/WooCommerce plugin that adds stablecoin payment support (USDC, USDT)
 1. Customer selects "Pay with Stablecoin" at checkout
 2. `ThirdwebCheckout.tsx` renders the CheckoutWidget with order total
 3. Customer connects wallet (MetaMask/Coinbase/WalletConnect) or pays with card
-4. Payment completes on-chain → thirdweb webhook fires to `/wp-json/thirdweb-wc/v1/webhook`
-5. PHP verifies transaction and marks WooCommerce order complete
+4. Payment completes on-chain → CheckoutWidget fires `onSuccess` callback with transaction data
+5. React component captures transaction hash and passes it to WooCommerce
+6. PHP verifies transaction on-chain via RPC and marks order complete
 
 ## Build Commands
 
@@ -80,9 +81,8 @@ Settings at: WooCommerce → Settings → Payments → Stablecoin Payment
 
 - **thirdweb Client ID**: From thirdweb dashboard
 - **Seller Wallet**: Address to receive payments
-- **Blockchain Network**: Base, Ethereum, Arbitrum, Polygon, Optimism
-- **Token Address**: USDC/USDT contract (optional, defaults to native token)
-- **Webhook Secret**: For verifying webhook signatures
+- **Chain ID**: Blockchain network chain ID (default: 8453 for Base). Supports any EVM chain
+- **Token Address**: USDC/USDT contract for the selected chain (optional, defaults to native token)
 
 ## CheckoutWidget Props Reference
 
@@ -94,10 +94,9 @@ Settings at: WooCommerce → Settings → Payments → Stablecoin Payment
   seller="0x..."                     // Merchant wallet address
   tokenAddress="0x..."               // USDC/USDT contract (optional)
   paymentMethods={['crypto', 'card']} // Enabled payment methods
-  onSuccess={handleSuccess}          // Success callback
+  onSuccess={handleSuccess}          // Success callback - receives Status[] with transaction data
   onError={handleError}              // Error callback
   onCancel={handleCancel}            // Cancel callback
-  purchaseData={{ orderId, source }} // Passed to webhook for order matching
   theme="light"                      // UI theme
   supportedTokens={{...}}            // Tokens users can pay with
 />
@@ -117,13 +116,13 @@ Settings at: WooCommerce → Settings → Payments → Stablecoin Payment
 - WooCommerce checkout blocks use React on frontend (not PHP server-rendered)
 - `@woocommerce/blocks-registry` provides `registerPaymentMethod()` API
 - `getSetting('thirdweb_stablecoin_data')` retrieves PHP config in React
-- Webhook endpoint must be publicly accessible for thirdweb to call
+- Transaction hash captured from CheckoutWidget's `onSuccess` callback
 - Transaction verification happens server-side via RPC for security
 
 ## TODO
 
 - [ ] Add refund support via thirdweb API
-- [ ] Implement proper webhook signature verification
 - [ ] Add transaction receipt email with block explorer link
 - [ ] Support multiple tokens per checkout
 - [ ] Add test mode toggle for testnet payments
+- [ ] Enhanced on-chain transaction verification (amount, recipient validation)

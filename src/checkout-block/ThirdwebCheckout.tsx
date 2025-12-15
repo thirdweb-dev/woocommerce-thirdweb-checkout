@@ -65,11 +65,35 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
 
     /**
      * Handle successful payment
+     * @param result - Status result(s) from CheckoutWidget (can be array or single object)
      */
-    const handleSuccess = useCallback(() => {
-        setPaymentComplete(true);
-        // The widget handles the transaction - we just need to mark complete
-        // The actual tx hash comes from the webhook or can be captured here
+    const handleSuccess = useCallback((result: any) => {
+        console.log('Payment success, result:', result);
+
+        // Handle different response formats
+        let completedStatus = null;
+
+        if (Array.isArray(result)) {
+            // If result is an array, find the completed status
+            completedStatus = result.find(
+                (status) => status.status === 'completed' && status.transactionHash
+            );
+        } else if (result && typeof result === 'object') {
+            // If result is a single object, check if it has transactionHash
+            if (result.transactionHash) {
+                completedStatus = result;
+            }
+        }
+
+        if (completedStatus && completedStatus.transactionHash) {
+            setTxHash(completedStatus.transactionHash);
+            setPaymentComplete(true);
+            console.log('Transaction hash captured:', completedStatus.transactionHash);
+        } else {
+            // Fallback: mark as complete even without tx hash (will use RPC verification)
+            setPaymentComplete(true);
+            console.warn('Payment complete but no transaction hash found in result');
+        }
     }, []);
 
     /**
@@ -97,7 +121,8 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
                     type: emitResponse.responseTypes.SUCCESS,
                     meta: {
                         paymentMethodData: {
-                            thirdweb_tx_hash: txHash || 'pending-webhook',
+                            thirdweb_tx_hash: txHash || '',
+                            thirdweb_chain_id: settings.chainId,
                         },
                     },
                 };
@@ -118,7 +143,7 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
         });
 
         return unsubscribe;
-    }, [onPaymentSetup, emitResponse, paymentComplete, txHash, error]);
+    }, [onPaymentSetup, emitResponse, paymentComplete, txHash, error, settings.chainId]);
 
     return (
         <ThirdwebProvider>
@@ -152,13 +177,7 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
                         onSuccess={handleSuccess}
                         onError={handleError}
                         onCancel={handleCancel}
-                        
-                        // Purchase data - sent to webhook for order matching
-                        purchaseData={{
-                            orderId: window.wc?.wcBlocksData?.storeCart?.cartKey || 'pending',
-                            source: 'woocommerce',
-                        }}
-                        
+
                         // Theming
                         theme="light"
                         
