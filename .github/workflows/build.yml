@@ -24,8 +24,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@eae0cfeb286e66ffb5155f1a79b90583a127a68b # v2.4.1
-        with:
-          version: 8
+        # Version is automatically read from package.json packageManager field
 
       - name: Get pnpm store directory
         id: pnpm-cache
@@ -65,7 +64,14 @@ jobs:
           # Check PHP syntax
           if command -v php &> /dev/null; then
             echo "Checking PHP syntax..."
-            find . -name "*.php" -not -path "./vendor/*" -not -path "./node_modules/*" -exec php -l {} \; | grep -v "No syntax errors"
+            ERRORS=$(find . -name "*.php" -not -path "./vendor/*" -not -path "./node_modules/*" -exec php -l {} \; 2>&1 | grep -v "No syntax errors" || true)
+            if [ -n "$ERRORS" ]; then
+              echo "PHP syntax errors found:"
+              echo "$ERRORS"
+              exit 1
+            else
+              echo "✅ All PHP files have valid syntax"
+            fi
           else
             echo "PHP not installed, skipping syntax check"
           fi
@@ -81,7 +87,7 @@ jobs:
           echo "- \`build/index.tsx.asset.php\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@c24449f33cd45d4826c6702db7e49f7cdb9b551d # v3.2.1-node20
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: build-artifacts
           path: build/
