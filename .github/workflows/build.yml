@@ -64,7 +64,14 @@ jobs:
           # Check PHP syntax
           if command -v php &> /dev/null; then
             echo "Checking PHP syntax..."
-            find . -name "*.php" -not -path "./vendor/*" -not -path "./node_modules/*" -exec php -l {} \; | grep -v "No syntax errors"
+            ERRORS=$(find . -name "*.php" -not -path "./vendor/*" -not -path "./node_modules/*" -exec php -l {} \; 2>&1 | grep -v "No syntax errors" || true)
+            if [ -n "$ERRORS" ]; then
+              echo "PHP syntax errors found:"
+              echo "$ERRORS"
+              exit 1
+            else
+              echo "✅ All PHP files have valid syntax"
+            fi
           else
             echo "PHP not installed, skipping syntax check"
           fi
