@@ -39,6 +39,7 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
         $this->seller_wallet  = $this->get_option('seller_wallet');
         $this->chain_id       = $this->get_option('chain_id');
         $this->token_address  = $this->get_option('token_address');
+        $this->theme          = $this->get_option('theme');
 
         // Save settings hook
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
@@ -110,6 +111,17 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
                 'description' => __('USDC/USDT contract address for the chain above. Make sure the token address matches your selected chain. Leave empty to accept the native token (ETH, MATIC, etc.). Default is USDC on Base (chain 8453).', 'thirdweb-wc'),
                 'default'     => '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
                 'placeholder' => __('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', 'thirdweb-wc'),
+            ],
+            'theme' => [
+                'title'       => __('Widget Theme', 'thirdweb-wc'),
+                'type'        => 'select',
+                'description' => __('Choose the color theme for the checkout widget. Light theme is recommended for most sites.', 'thirdweb-wc'),
+                'default'     => 'light',
+                'desc_tip'    => true,
+                'options'     => [
+                    'light' => __('Light', 'thirdweb-wc'),
+                    'dark'  => __('Dark', 'thirdweb-wc'),
+                ],
             ],
         ];
     }
@@ -227,6 +239,7 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
             'tokenAddress' => $this->token_address,
             'title'        => $this->title,
             'description'  => $this->description,
+            'theme'        => $this->theme ?: 'light',
         ];
     }
 }

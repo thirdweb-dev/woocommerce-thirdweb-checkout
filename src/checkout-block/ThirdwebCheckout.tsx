@@ -17,6 +17,7 @@ interface ThirdwebCheckoutProps {
         chainId: number;
         tokenAddress?: string;
         description?: string;
+        theme?: 'light' | 'dark';
         supportedTokens?: Array<{ symbol: string; address: string }>;
     };
     billing: {
@@ -178,7 +179,7 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
                         onCancel={handleCancel}
 
                         // Theming
-                        theme="light"
+                        theme={settings.theme || 'light'}
                     />
                 </div>
 
