@@ -1,13 +1,33 @@
 <?php
 /**
  * Plugin Name: thirdweb Stablecoin Checkout for WooCommerce
- * Description: Accept stablecoin payments (USDC, USDT) via thirdweb CheckoutWidget
+ * Plugin URI: https://github.com/thirdweb-dev/woocommerce-thirdweb-checkout
+ * Description: Accept stablecoin payments (USDC, USDT) via thirdweb CheckoutWidget. Support for multiple blockchains including Base, Ethereum, Polygon, and Arbitrum.
  * Version: 1.0.0
- * Author: Your Name
+ * Author: thirdweb
+ * Author URI: https://thirdweb.com
+ * License: Apache-2.0
+ * License URI: https://www.apache.org/licenses/LICENSE-2.0
+ * Text Domain: thirdweb-woocommerce-checkout
+ * Domain Path: /languages
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * WC requires at least: 8.0
  * WC tested up to: 9.0
+ *
+ * Copyright 2024 thirdweb
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 defined('ABSPATH') || exit;

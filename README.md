@@ -2,6 +2,16 @@
 
 A WordPress/WooCommerce plugin that adds stablecoin payment support using thirdweb's CheckoutWidget.
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub release](https://img.shields.io/github/v/release/thirdweb-dev/woocommerce-thirdweb-checkout)](https://github.com/thirdweb-dev/woocommerce-thirdweb-checkout/releases)
+
+## Quick Links
+
+- 📖 [Installation Guide](INSTALLATION.md) - Detailed setup instructions
+- 🤝 [Contributing](CONTRIBUTING.md) - How to contribute
+- 🐛 [Report Issues](https://github.com/thirdweb-dev/woocommerce-thirdweb-checkout/issues)
+- 💬 [Discord Community](https://discord.gg/thirdweb)
+
 ## Architecture Overview
 
 ```
@@ -124,10 +134,22 @@ pnpm run build    # Build once
 To create a production-ready ZIP for distribution:
 
 ```bash
-pnpm run package
+# Using the package script
+./package.sh
+
+# Or specify a version
+./package.sh 1.0.0
 ```
 
-This creates `dist/thirdweb-woocommerce-checkout.zip` ready for WordPress installation.
+This creates:
+- `dist/thirdweb-woocommerce-checkout/` - Plugin directory
+- `dist/thirdweb-woocommerce-checkout-VERSION.zip` - Ready for WordPress installation
+
+The package script:
+- Builds frontend assets
+- Copies only necessary files (excludes dev files)
+- Creates a clean ZIP for distribution
+- Suitable for WordPress.org and GitHub releases
 
 ## Testing the CheckoutWidget
 
@@ -250,4 +272,72 @@ After verifying the CheckoutWidget works standalone, test the full plugin integr
 3. **Customer connects wallet** (or pays with card via thirdweb)
 4. **Payment completes on-chain** → CheckoutWidget fires `onSuccess` callback
 5. **Transaction hash captured** and passed to WooCommerce
-6. **PHP verifies transaction** on-chain via RPC and marks order complete
+6. **Order marked complete** with transaction hash in order notes
+
+## Distribution & Releases
+
+### For Users
+
+Download the latest release from:
+- **GitHub Releases**: [Latest Release](https://github.com/thirdweb-dev/woocommerce-thirdweb-checkout/releases/latest)
+- **WordPress.org**: Coming soon
+
+### For Maintainers
+
+#### Creating a Release
+
+1. **Update version numbers**:
+   - `thirdweb-woocommerce-checkout.php` - Plugin header
+   - `readme.txt` - Stable tag and changelog
+   - `THIRDWEB_WC_VERSION` constant
+
+2. **Build and test**:
+   ```bash
+   pnpm run build
+   ./package.sh VERSION
+   ```
+
+3. **Create and push tag**:
+   ```bash
+   git tag -a vVERSION -m "Release version VERSION"
+   git push origin vVERSION
+   ```
+
+4. **GitHub Actions** automatically:
+   - Builds the plugin
+   - Creates GitHub release
+   - Uploads distribution ZIP
+
+5. **WordPress.org** (manual):
+   - Update SVN repository
+   - Deploy to WordPress.org
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed release process.
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Development setup
+- Code style guidelines
+- Pull request process
+- Testing requirements
+
+## Support & Community
+
+- 📖 **Documentation**: [Installation Guide](INSTALLATION.md)
+- 💬 **Discord**: [thirdweb Community](https://discord.gg/thirdweb)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/thirdweb-dev/woocommerce-thirdweb-checkout/issues)
+- 📚 **thirdweb Docs**: [portal.thirdweb.com](https://portal.thirdweb.com)
+
+## License
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+
+## Credits
+
+Built by [thirdweb](https://thirdweb.com) - Making Web3 development simple and accessible.
+
+Powered by:
+- [thirdweb SDK](https://portal.thirdweb.com/typescript/v5)
+- [WooCommerce](https://woocommerce.com)
+- [WordPress](https://wordpress.org)

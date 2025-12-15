@@ -1,0 +1,64 @@
+# Files to exclude from WordPress.org distribution
+
+# Development files
+/.git
+/.github
+/node_modules
+/test-app
+/src
+
+# Build tools
+/webpack.config.js
+/tsconfig.json
+/package.json
+/package-lock.json
+/pnpm-lock.yaml
+/.nvmrc
+
+# Development scripts
+/package.sh
+
+# Environment files
+/.env
+/.env.example
+
+# Documentation (keep README.md, remove development docs)
+/CLAUDE.md
+/CONTRIBUTING.md
+
+# Testing files
+/tests
+/.phpunit.result.cache
+
+# IDE files
+/.vscode
+/.idea
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+/tmp
+
+# Git files
+.gitignore
+.gitattributes
+
+# CI/CD
+/.travis.yml
+/.circleci
+/phpcs.xml
+/phpunit.xml

@@ -1,0 +1,124 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger on version tags like v1.0.0
+
+jobs:
+  build-and-release:
+    name: Build and Release Plugin
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # Required for creating releases
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend assets
+        run: pnpm run build
+
+      - name: Verify build output
+        run: |
+          if [ ! -f "build/index.tsx.js" ]; then
+            echo "Error: Build failed - build/index.tsx.js not found"
+            exit 1
+          fi
+          echo "Build successful!"
+
+      - name: Create distribution package
+        run: |
+          PLUGIN_SLUG="thirdweb-woocommerce-checkout"
+          VERSION="${{ steps.get_version.outputs.version }}"
+          BUILD_DIR="dist/$PLUGIN_SLUG"
+
+          # Create build directory
+          mkdir -p "$BUILD_DIR"
+
+          # Copy plugin files
+          cp thirdweb-woocommerce-checkout.php "$BUILD_DIR/"
+          cp readme.txt "$BUILD_DIR/"
+          cp README.md "$BUILD_DIR/"
+          cp LICENSE "$BUILD_DIR/"
+          cp .env.example "$BUILD_DIR/"
+
+          # Copy directories
+          cp -r includes "$BUILD_DIR/"
+          cp -r build "$BUILD_DIR/"
+          cp -r assets "$BUILD_DIR/"
+
+          # Clean up
+          find "$BUILD_DIR" -name ".DS_Store" -delete
+          find "$BUILD_DIR" -name "*.log" -delete
+
+          # Create ZIP
+          cd dist
+          zip -r "${PLUGIN_SLUG}-${VERSION}.zip" "$PLUGIN_SLUG"
+          cd ..
+
+          echo "Package created: dist/${PLUGIN_SLUG}-${VERSION}.zip"
+          ls -lh dist/*.zip
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Extract changelog for this version from readme.txt
+          VERSION="${{ steps.get_version.outputs.version }}"
+
+          # Get the changelog section
+          CHANGELOG=$(awk "/^= $VERSION /{flag=1; next} /^= [0-9]/{flag=0} flag" readme.txt | sed 's/^[[:space:]]*//')
+
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="Release version $VERSION"
+          fi
+
+          # Save to file for release notes
+          echo "$CHANGELOG" > CHANGELOG.txt
+          echo "Changelog extracted"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Version ${{ steps.get_version.outputs.version }}
+          body_path: CHANGELOG.txt
+          files: |
+            dist/thirdweb-woocommerce-checkout-${{ steps.get_version.outputs.version }}.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Summary
+        run: |
+          echo "### Release Created! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Plugin:** thirdweb Stablecoin Checkout for WooCommerce" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GitHub Release created with ZIP file" >> $GITHUB_STEP_SUMMARY
+          echo "- 📦 Download the ZIP from the [Releases page](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 Test the plugin on a staging site" >> $GITHUB_STEP_SUMMARY
+          echo "- 📝 Update WordPress.org SVN repository (manual step)" >> $GITHUB_STEP_SUMMARY

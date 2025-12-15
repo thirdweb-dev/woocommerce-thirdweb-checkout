@@ -1,0 +1,88 @@
+name: Build and Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Plugin
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend assets
+        run: pnpm run build
+
+      - name: Verify build output
+        run: |
+          if [ ! -f "build/index.tsx.js" ]; then
+            echo "Error: Build failed - build/index.tsx.js not found"
+            exit 1
+          fi
+          if [ ! -f "build/index.tsx.asset.php" ]; then
+            echo "Error: Build failed - build/index.tsx.asset.php not found"
+            exit 1
+          fi
+          echo "✅ Build successful!"
+          ls -lh build/
+
+      - name: Check plugin file syntax
+        run: |
+          # Check PHP syntax
+          if command -v php &> /dev/null; then
+            echo "Checking PHP syntax..."
+            find . -name "*.php" -not -path "./vendor/*" -not -path "./node_modules/*" -exec php -l {} \; | grep -v "No syntax errors"
+          else
+            echo "PHP not installed, skipping syntax check"
+          fi
+
+      - name: Build Summary
+        run: |
+          echo "### Build Status ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All checks passed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Build Artifacts:**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`build/index.tsx.js\` ($(du -h build/index.tsx.js | cut -f1))" >> $GITHUB_STEP_SUMMARY
+          echo "- \`build/index.tsx.asset.php\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: build/
+          retention-days: 7
