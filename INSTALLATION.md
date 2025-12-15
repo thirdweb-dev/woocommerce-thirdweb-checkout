@@ -40,7 +40,7 @@ Before installing the plugin, ensure you have:
 
 ## Installation Methods
 
-### Method 1: WordPress.org (Recommended)
+### Method 1: WordPress.org (COMING SOON - pending approval in WP marketplace)
 
 **Best for:** Most users, automatic updates
 
