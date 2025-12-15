@@ -1,8 +1,8 @@
 <?php
 /**
  * WooCommerce Blocks Support for thirdweb Payment Gateway
- * 
- * This enables the payment method to work with the new 
+ *
+ * This enables the payment method to work with the new
  * React-based WooCommerce Checkout Blocks
  */
 
@@ -11,16 +11,9 @@ defined('ABSPATH') || exit;
 use Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType;
 
 /**
- * Register the block payment method type
- */
-add_action('woocommerce_blocks_payment_method_type_registration', function($payment_method_registry) {
-    $payment_method_registry->register(new WC_Thirdweb_Blocks_Support());
-});
-
-/**
  * Block support class
  */
-class WC_Thirdweb_Blocks_Support extends AbstractPaymentMethodType {
+final class WC_Thirdweb_Blocks_Support extends AbstractPaymentMethodType {
     
     /**
      * Payment method name/id
@@ -54,25 +47,30 @@ class WC_Thirdweb_Blocks_Support extends AbstractPaymentMethodType {
      * Register scripts for checkout block
      */
     public function get_payment_method_script_handles() {
-        $asset_path = THIRDWEB_WC_PLUGIN_DIR . 'build/checkout-block.asset.php';
-        $asset      = file_exists($asset_path) 
-            ? require($asset_path) 
+        $asset_path = THIRDWEB_WC_PLUGIN_DIR . 'build/index.tsx.asset.php';
+        $asset      = file_exists($asset_path)
+            ? require($asset_path)
             : ['dependencies' => [], 'version' => THIRDWEB_WC_VERSION];
+
+        // Add WooCommerce block dependencies (they're externals in webpack)
+        $dependencies = array_merge(
+            $asset['dependencies'],
+            [
+                'wc-blocks-registry',
+                'wc-settings',
+            ]
+        );
 
         wp_register_script(
             'thirdweb-wc-checkout-block',
-            THIRDWEB_WC_PLUGIN_URL . 'build/checkout-block.js',
-            $asset['dependencies'],
+            THIRDWEB_WC_PLUGIN_URL . 'build/index.tsx.js',
+            $dependencies,
             $asset['version'],
             true
         );
 
-        // Pass PHP config to JavaScript
-        wp_localize_script(
-            'thirdweb-wc-checkout-block',
-            'thirdwebWCConfig',
-            $this->get_payment_method_data()
-        );
+        // Note: get_payment_method_data() is automatically passed to JS by WooCommerce Blocks
+        // via the getSetting() function, no need to localize manually
 
         return ['thirdweb-wc-checkout-block'];
     }

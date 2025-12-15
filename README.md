@@ -196,8 +196,13 @@ After verifying the CheckoutWidget works standalone, test the full plugin integr
 
 3. **Link the plugin** to your WordPress installation:
 
+   **Important**: Run these commands from the plugin root directory (where `thirdweb-woocommerce-checkout.php` is located).
+
    **Option A: Symlink (recommended for development)**
    ```bash
+   # Make sure you're in the plugin directory first
+   cd /path/to/woocommerce-thirdweb-checkout
+
    # LocalWP example:
    ln -s $(pwd) ~/Local\ Sites/YOUR_SITE/app/public/wp-content/plugins/thirdweb-woocommerce-checkout
 
@@ -207,7 +212,8 @@ After verifying the CheckoutWidget works standalone, test the full plugin integr
 
    **Option B: Copy files**
    ```bash
-   cp -r $(pwd) ~/Local\ Sites/YOUR_SITE/app/public/wp-content/plugins/thirdweb-woocommerce-checkout
+   # From the plugin directory:
+   cp -r . ~/Local\ Sites/YOUR_SITE/app/public/wp-content/plugins/thirdweb-woocommerce-checkout
    ```
 
 4. **Activate the plugin**:

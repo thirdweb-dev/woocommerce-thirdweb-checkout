@@ -91,6 +91,11 @@ function thirdweb_wc_init() {
     // Load block support for checkout blocks
     add_action('woocommerce_blocks_loaded', function() {
         require_once THIRDWEB_WC_PLUGIN_DIR . 'includes/class-thirdweb-blocks-support.php';
+
+        // Register with blocks payment method registry
+        add_action('woocommerce_blocks_payment_method_type_registration', function($payment_method_registry) {
+            $payment_method_registry->register(new WC_Thirdweb_Blocks_Support());
+        });
     });
 }
 add_action('plugins_loaded', 'thirdweb_wc_init');

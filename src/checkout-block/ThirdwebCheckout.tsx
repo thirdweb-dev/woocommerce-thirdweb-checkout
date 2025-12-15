@@ -58,7 +58,7 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
     // Calculate amount in token units (assuming 6 decimals for USDC/USDT)
     // WooCommerce sends total in smallest currency unit (cents for USD)
     const cartTotalInDollars = billing.cartTotal.value / 100;
-    
+
     // For stablecoins, amount is typically 1:1 with USD
     // The CheckoutWidget expects amount as a string
     const amount = cartTotalInDollars.toFixed(2);
@@ -162,17 +162,16 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
                         chain={chain}
                         amount={amount}
                         seller={settings.seller as `0x${string}`}
-                        
+
                         // Optional: specific token (USDC address)
-                        tokenAddress={settings.tokenAddress as `0x${string}` | undefined}
-                        
-                        // Product info (optional - enhances the checkout UI)
-                        name="Order Payment"
-                        description={`Pay ${billing.currency.code} ${amount}`}
-                        
+                        // Only pass if it's a valid address, not empty string
+                        {...(settings.tokenAddress && settings.tokenAddress.startsWith('0x')
+                            ? { tokenAddress: settings.tokenAddress as `0x${string}` }
+                            : {})}
+
                         // Payment methods
                         paymentMethods={['crypto', 'card']}
-                        
+
                         // Callbacks
                         onSuccess={handleSuccess}
                         onError={handleError}
@@ -180,15 +179,6 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
 
                         // Theming
                         theme="light"
-                        
-                        // Supported tokens users can pay WITH (cross-chain)
-                        supportedTokens={{
-                            [settings.chainId]: settings.supportedTokens?.map(t => ({
-                                address: t.address as `0x${string}`,
-                                name: t.symbol,
-                                symbol: t.symbol,
-                            })) || [],
-                        }}
                     />
                 </div>
 
