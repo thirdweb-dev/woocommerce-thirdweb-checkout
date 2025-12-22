@@ -67,32 +67,48 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
 
     /**
      * Listen for messages from the checkout widget iframe
+     * 
+     * thirdweb sends messages with format:
+     * { source: "checkout-widget", type: "success"|"error", message: "...", ... }
      */
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
-            // Verify that message is from thirdweb checkout widget iframe
-            if (
-                event.origin === 'https://thirdweb.com' &&
-                event.data.source === 'checkout-widget'
-            ) {
-                if (event.data.type === 'success') {
-                    console.log('Purchase successful!', event.data);
-                    
-                    // Extract transaction hash if available
-                    const transactionHash = event.data.transactionHash || event.data.txHash || null;
-                    if (transactionHash) {
-                        setTxHash(transactionHash);
-                    }
-                    
-                    setPaymentComplete(true);
-                    setError(null);
-                }
+            // Verify origin is from thirdweb.com (security check)
+            const isThirdwebOrigin = event.origin === 'https://thirdweb.com' || 
+                                    event.origin === 'https://www.thirdweb.com';
+            
+            if (!isThirdwebOrigin) {
+                return;
+            }
 
-                if (event.data.type === 'error') {
-                    console.error('Purchase failed with error:', event.data.message);
-                    setError(event.data.message || 'Payment failed. Please try again.');
-                    setPaymentComplete(false);
+            const data = event.data;
+            
+            // Verify message is from checkout-widget by checking source field
+            if (!data || typeof data !== 'object' || data.source !== 'checkout-widget') {
+                return;
+            }
+
+            // Handle success messages
+            if (data.type === 'success') {
+                // Extract transaction hash if available
+                const transactionHash = 
+                    data.transactionHash || 
+                    data.txHash || 
+                    data.hash ||
+                    null;
+                
+                if (transactionHash) {
+                    setTxHash(transactionHash);
                 }
+                
+                setPaymentComplete(true);
+                setError(null);
+            } 
+            // Handle error messages
+            else if (data.type === 'error') {
+                const errorMessage = data.message || 'Payment failed. Please try again.';
+                setError(errorMessage);
+                setPaymentComplete(false);
             }
         };
 
@@ -109,13 +125,20 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
     useEffect(() => {
         const unsubscribe = onPaymentSetup(() => {
             if (paymentComplete) {
+                // Build payment method data - only include tx_hash if it exists
+                const paymentMethodData: Record<string, string> = {
+                    thirdweb_chain_id: String(settings.chainId),
+                };
+                
+                // Only add tx_hash if we have one (it's optional)
+                if (txHash) {
+                    paymentMethodData.thirdweb_tx_hash = txHash;
+                }
+                
                 return {
                     type: emitResponse.responseTypes.SUCCESS,
                     meta: {
-                        paymentMethodData: {
-                            thirdweb_tx_hash: txHash || '',
-                            thirdweb_chain_id: settings.chainId,
-                        },
+                        paymentMethodData,
                     },
                 };
             }
