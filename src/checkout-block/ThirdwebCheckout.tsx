@@ -1,23 +1,17 @@
 /**
  * ThirdwebCheckout Component
  * 
- * Wraps thirdweb's CheckoutWidget for WooCommerce checkout integration
+ * Uses thirdweb's hosted checkout widget iframe (no Client ID required)
  */
 
-import React, { useEffect, useCallback, useState } from 'react';
-import { ThirdwebProvider } from 'thirdweb/react';
-import { CheckoutWidget } from 'thirdweb/react';
-import { createThirdwebClient } from 'thirdweb';
-import { defineChain } from 'thirdweb/chains';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 
 interface ThirdwebCheckoutProps {
     settings: {
-        clientId: string;
         seller: string;
         chainId: number;
         tokenAddress?: string;
         description?: string;
-        theme?: 'light' | 'dark';
         supportedTokens?: Array<{ symbol: string; address: string }>;
     };
     billing: {
@@ -47,69 +41,66 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
     const [txHash, setTxHash] = useState<string | null>(null);
     const [paymentComplete, setPaymentComplete] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
 
-    // Create thirdweb client
-    const client = createThirdwebClient({
-        clientId: settings.clientId,
-    });
-
-    // Define the chain
-    const chain = defineChain(settings.chainId);
-
-    // Calculate amount in token units (assuming 6 decimals for USDC/USDT)
+    // Calculate amount in token units
     // WooCommerce sends total in smallest currency unit (cents for USD)
     const cartTotalInDollars = billing.cartTotal.value / 100;
-
-    // For stablecoins, amount is typically 1:1 with USD
-    // The CheckoutWidget expects amount as a string
     const amount = cartTotalInDollars.toFixed(2);
 
+    // Build iframe URL
+    const buildIframeUrl = () => {
+        const baseUrl = 'https://thirdweb.com/bridge/checkout-widget';
+        const params = new URLSearchParams({
+            chain: settings.chainId.toString(),
+            amount: amount,
+            seller: settings.seller,
+        });
+
+        // Add token address if provided
+        if (settings.tokenAddress && settings.tokenAddress.startsWith('0x')) {
+            params.append('tokenAddress', settings.tokenAddress);
+        }
+
+        return `${baseUrl}?${params.toString()}`;
+    };
+
     /**
-     * Handle successful payment
-     * @param result - Status result(s) from CheckoutWidget (can be array or single object)
+     * Listen for messages from the checkout widget iframe
      */
-    const handleSuccess = useCallback((result: any) => {
-        console.log('Payment success, result:', result);
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            // Verify that message is from thirdweb checkout widget iframe
+            if (
+                event.origin === 'https://thirdweb.com' &&
+                event.data.source === 'checkout-widget'
+            ) {
+                if (event.data.type === 'success') {
+                    console.log('Purchase successful!', event.data);
+                    
+                    // Extract transaction hash if available
+                    const transactionHash = event.data.transactionHash || event.data.txHash || null;
+                    if (transactionHash) {
+                        setTxHash(transactionHash);
+                    }
+                    
+                    setPaymentComplete(true);
+                    setError(null);
+                }
 
-        // Handle different response formats
-        let completedStatus = null;
-
-        if (Array.isArray(result)) {
-            // If result is an array, find the completed status
-            completedStatus = result.find(
-                (status) => status.status === 'completed' && status.transactionHash
-            );
-        } else if (result && typeof result === 'object') {
-            // If result is a single object, check if it has transactionHash
-            if (result.transactionHash) {
-                completedStatus = result;
+                if (event.data.type === 'error') {
+                    console.error('Purchase failed with error:', event.data.message);
+                    setError(event.data.message || 'Payment failed. Please try again.');
+                    setPaymentComplete(false);
+                }
             }
-        }
+        };
 
-        if (completedStatus && completedStatus.transactionHash) {
-            setTxHash(completedStatus.transactionHash);
-            setPaymentComplete(true);
-            console.log('Transaction hash captured:', completedStatus.transactionHash);
-        } else {
-            // Fallback: mark as complete even without tx hash (will use RPC verification)
-            setPaymentComplete(true);
-            console.warn('Payment complete but no transaction hash found in result');
-        }
-    }, []);
+        window.addEventListener('message', handleMessage);
 
-    /**
-     * Handle payment error
-     */
-    const handleError = useCallback((err: Error) => {
-        console.error('Payment error:', err);
-        setError(err.message);
-    }, []);
-
-    /**
-     * Handle payment cancellation
-     */
-    const handleCancel = useCallback(() => {
-        setError('Payment cancelled');
+        return () => {
+            window.removeEventListener('message', handleMessage);
+        };
     }, []);
 
     /**
@@ -147,102 +138,92 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
     }, [onPaymentSetup, emitResponse, paymentComplete, txHash, error, settings.chainId]);
 
     return (
-        <ThirdwebProvider>
-            <div className="thirdweb-checkout-container">
-                {/* Description */}
-                {settings.description && (
-                    <p className="thirdweb-checkout-description">
-                        {settings.description}
-                    </p>
-                )}
+        <div className="thirdweb-checkout-container">
+            {/* Description */}
+            {settings.description && (
+                <p className="thirdweb-checkout-description">
+                    {settings.description}
+                </p>
+            )}
 
-                {/* CheckoutWidget */}
-                <div className="thirdweb-widget-wrapper">
-                    <CheckoutWidget
-                        client={client}
-                        chain={chain}
-                        amount={amount}
-                        seller={settings.seller as `0x${string}`}
-
-                        // Optional: specific token (USDC address)
-                        // Only pass if it's a valid address, not empty string
-                        {...(settings.tokenAddress && settings.tokenAddress.startsWith('0x')
-                            ? { tokenAddress: settings.tokenAddress as `0x${string}` }
-                            : {})}
-
-                        // Payment methods
-                        paymentMethods={['crypto', 'card']}
-
-                        // Callbacks
-                        onSuccess={handleSuccess}
-                        onError={handleError}
-                        onCancel={handleCancel}
-
-                        // Theming
-                        theme={settings.theme || 'light'}
-                    />
-                </div>
-
-                {/* Status messages */}
-                {paymentComplete && (
-                    <div className="thirdweb-checkout-success">
-                        ✓ Payment complete! Click "Place Order" to confirm.
-                    </div>
-                )}
-
-                {error && (
-                    <div className="thirdweb-checkout-error">
-                        {error}
-                    </div>
-                )}
-
-                {/* Supported tokens display */}
-                <div className="thirdweb-supported-tokens">
-                    <small>
-                        Accepts: USDC, USDT, and more • Powered by thirdweb
-                    </small>
-                </div>
-
-                {/* Styles */}
-                <style>{`
-                    .thirdweb-checkout-container {
-                        padding: 16px 0;
-                    }
-                    
-                    .thirdweb-checkout-description {
-                        color: #666;
-                        margin-bottom: 16px;
-                    }
-                    
-                    .thirdweb-widget-wrapper {
-                        min-height: 400px;
-                        display: flex;
-                        justify-content: center;
-                    }
-                    
-                    .thirdweb-checkout-success {
-                        background: #d4edda;
-                        color: #155724;
-                        padding: 12px 16px;
-                        border-radius: 4px;
-                        margin-top: 16px;
-                    }
-                    
-                    .thirdweb-checkout-error {
-                        background: #f8d7da;
-                        color: #721c24;
-                        padding: 12px 16px;
-                        border-radius: 4px;
-                        margin-top: 16px;
-                    }
-                    
-                    .thirdweb-supported-tokens {
-                        text-align: center;
-                        margin-top: 16px;
-                        color: #888;
-                    }
-                `}</style>
+            {/* Checkout Widget Iframe */}
+            <div className="thirdweb-widget-wrapper">
+                <iframe
+                    ref={iframeRef}
+                    src={buildIframeUrl()}
+                    height="700px"
+                    width="100%"
+                    style={{ border: 0 }}
+                    title="thirdweb Checkout Widget"
+                    allow="payment"
+                />
             </div>
-        </ThirdwebProvider>
+
+            {/* Status messages */}
+            {paymentComplete && (
+                <div className="thirdweb-checkout-success">
+                    ✓ Payment complete! Click "Place Order" to confirm.
+                </div>
+            )}
+
+            {error && (
+                <div className="thirdweb-checkout-error">
+                    {error}
+                </div>
+            )}
+
+            {/* Supported tokens display */}
+            <div className="thirdweb-supported-tokens">
+                <small>
+                    Accepts: USDC, USDT, and more • Powered by thirdweb
+                </small>
+            </div>
+
+            {/* Styles */}
+            <style>{`
+                .thirdweb-checkout-container {
+                    padding: 16px 0;
+                }
+                
+                .thirdweb-checkout-description {
+                    color: #666;
+                    margin-bottom: 16px;
+                }
+                
+                .thirdweb-widget-wrapper {
+                    min-height: 700px;
+                    width: 100%;
+                    margin: 16px 0;
+                }
+                
+                .thirdweb-widget-wrapper iframe {
+                    width: 100%;
+                    border: 0;
+                    border-radius: 8px;
+                }
+                
+                .thirdweb-checkout-success {
+                    background: #d4edda;
+                    color: #155724;
+                    padding: 12px 16px;
+                    border-radius: 4px;
+                    margin-top: 16px;
+                }
+                
+                .thirdweb-checkout-error {
+                    background: #f8d7da;
+                    color: #721c24;
+                    padding: 12px 16px;
+                    border-radius: 4px;
+                    margin-top: 16px;
+                }
+                
+                .thirdweb-supported-tokens {
+                    text-align: center;
+                    margin-top: 16px;
+                    color: #888;
+                }
+            `}</style>
+        </div>
     );
 };

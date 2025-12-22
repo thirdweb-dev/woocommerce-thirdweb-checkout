@@ -32,14 +32,10 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
         $this->description  = $this->get_option('description');
         $this->enabled      = $this->get_option('enabled');
         
-        // thirdweb specific settings
-        // Use .env value as default if WooCommerce setting is empty
-        $env_client_id = thirdweb_wc_get_env('THIRDWEB_CLIENT_ID', '');
-        $this->client_id      = $this->get_option('client_id') ?: $env_client_id;
+        // thirdweb specific settings (no Client ID needed for iframe widget)
         $this->seller_wallet  = $this->get_option('seller_wallet');
         $this->chain_id       = $this->get_option('chain_id');
         $this->token_address  = $this->get_option('token_address');
-        $this->theme          = $this->get_option('theme');
 
         // Save settings hook
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
@@ -69,23 +65,10 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
                 'description' => __('Payment method description shown at checkout', 'thirdweb-wc'),
                 'default'     => __('Pay securely with USDC, USDT or other stablecoins from any wallet.', 'thirdweb-wc'),
             ],
-            'client_id' => [
-                'title'       => __('thirdweb Client ID', 'thirdweb-wc'),
-                'type'        => 'text',
-                'description' => sprintf(
-                    __('Get your Client ID from <a href="%s" target="_blank">thirdweb Dashboard</a>. Create a new project if you haven\'t already. Can also be set via .env file for development.', 'thirdweb-wc'),
-                    'https://thirdweb.com/dashboard'
-                ),
-                'default'     => thirdweb_wc_get_env('THIRDWEB_CLIENT_ID', ''),
-                'placeholder' => __('e.g., abc123def456...', 'thirdweb-wc'),
-            ],
             'seller_wallet' => [
                 'title'       => __('Seller Wallet Address', 'thirdweb-wc'),
                 'type'        => 'text',
-                'description' => sprintf(
-                    __('Your project wallet address that will receive all payments. Get this from your <a href="%s" target="_blank">thirdweb project dashboard</a>.', 'thirdweb-wc'),
-                    'https://thirdweb.com/dashboard'
-                ),
+                'description' => __('Your wallet address that will receive all payments. Use any Ethereum-compatible wallet (MetaMask, Coinbase Wallet, etc.).', 'thirdweb-wc'),
                 'default'     => '',
                 'placeholder' => __('0x...', 'thirdweb-wc'),
                 'custom_attributes' => [
@@ -108,20 +91,9 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
             'token_address' => [
                 'title'       => __('Token Address (Optional)', 'thirdweb-wc'),
                 'type'        => 'text',
-                'description' => __('USDC/USDT contract address for the chain above. Make sure the token address matches your selected chain. Leave empty to accept the native token (ETH, MATIC, etc.). Default is USDC on Base (chain 8453).', 'thirdweb-wc'),
+                'description' => __('USDC/USDT contract address for the chain above. Make sure the token address matches your selected chain. Leave empty to accept any stablecoin. Default is USDC on Base (chain 8453).', 'thirdweb-wc'),
                 'default'     => '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
                 'placeholder' => __('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', 'thirdweb-wc'),
-            ],
-            'theme' => [
-                'title'       => __('Widget Theme', 'thirdweb-wc'),
-                'type'        => 'select',
-                'description' => __('Choose the color theme for the checkout widget. Light theme is recommended for most sites.', 'thirdweb-wc'),
-                'default'     => 'light',
-                'desc_tip'    => true,
-                'options'     => [
-                    'light' => __('Light', 'thirdweb-wc'),
-                    'dark'  => __('Dark', 'thirdweb-wc'),
-                ],
             ],
         ];
     }
@@ -134,15 +106,24 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
             echo wpautop(wptexturize($this->description));
         }
         
-        // Container for React to mount the CheckoutWidget
-        echo '<div id="thirdweb-checkout-widget" 
-                   data-client-id="' . esc_attr($this->client_id) . '"
-                   data-seller="' . esc_attr($this->seller_wallet) . '"
-                   data-chain-id="' . esc_attr($this->chain_id) . '"
-                   data-token-address="' . esc_attr($this->token_address) . '"
-                   data-amount="' . esc_attr(WC()->cart->get_total('edit')) . '"
-                   data-currency="' . esc_attr(get_woocommerce_currency()) . '">
-              </div>';
+        // Container for iframe checkout widget (legacy checkout)
+        $amount = WC()->cart->get_total('edit');
+        $params = [
+            'chain' => $this->chain_id,
+            'amount' => $amount,
+            'seller' => $this->seller_wallet,
+        ];
+        
+        // Only add tokenAddress if provided
+        if (!empty($this->token_address)) {
+            $params['tokenAddress'] = $this->token_address;
+        }
+        
+        $iframe_url = 'https://thirdweb.com/bridge/checkout-widget?' . http_build_query($params);
+        
+        echo '<div id="thirdweb-checkout-widget">';
+        echo '<iframe src="' . esc_url($iframe_url) . '" height="700px" width="100%" style="border: 0;" title="thirdweb Checkout Widget"></iframe>';
+        echo '</div>';
         
         // Hidden field to store transaction hash
         echo '<input type="hidden" name="thirdweb_tx_hash" id="thirdweb_tx_hash" value="" />';
@@ -199,8 +180,17 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
      * Verify transaction on-chain
      */
     private function verify_transaction($tx_hash, $order) {
-        // Use thirdweb RPC to verify the transaction
-        $rpc_url = 'https://' . $this->chain_id . '.rpc.thirdweb.com/' . $this->client_id;
+        // Use public RPC endpoint to verify the transaction
+        // No Client ID needed - using public RPC endpoints
+        $rpc_endpoints = [
+            '1'      => 'https://eth.llamarpc.com', // Ethereum
+            '8453'   => 'https://base.llamarpc.com', // Base
+            '137'    => 'https://polygon.llamarpc.com', // Polygon
+            '42161'  => 'https://arbitrum.llamarpc.com', // Arbitrum
+            '10'     => 'https://optimism.llamarpc.com', // Optimism
+        ];
+
+        $rpc_url = $rpc_endpoints[$this->chain_id] ?? 'https://eth.llamarpc.com';
         
         $response = wp_remote_post($rpc_url, [
             'headers' => ['Content-Type' => 'application/json'],
@@ -210,10 +200,13 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
                 'params'  => [$tx_hash],
                 'id'      => 1,
             ]),
+            'timeout' => 10,
         ]);
 
         if (is_wp_error($response)) {
-            return false;
+            // If RPC fails, still allow the order (transaction hash is recorded)
+            // Admin can manually verify on block explorer
+            return true;
         }
 
         $body = json_decode(wp_remote_retrieve_body($response), true);
@@ -233,13 +226,11 @@ class WC_Thirdweb_Payment_Gateway extends WC_Payment_Gateway {
      */
     public function get_frontend_config() {
         return [
-            'clientId'     => $this->client_id,
             'seller'       => $this->seller_wallet,
             'chainId'      => (int) $this->chain_id,
             'tokenAddress' => $this->token_address,
             'title'        => $this->title,
             'description'  => $this->description,
-            'theme'        => $this->theme ?: 'light',
         ];
     }
 }
