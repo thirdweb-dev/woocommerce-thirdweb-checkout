@@ -88,6 +88,7 @@ final class WC_Thirdweb_Blocks_Support extends AbstractPaymentMethodType {
             'seller'       => $this->get_setting('seller_wallet'),
             'chainId'      => (int) $this->get_setting('chain_id'),
             'tokenAddress' => $this->get_setting('token_address'),
+            'theme'        => $this->get_setting('theme', 'dark'),
 
             // Icons/branding
             'icon'         => THIRDWEB_WC_PLUGIN_URL . 'assets/icon.svg',

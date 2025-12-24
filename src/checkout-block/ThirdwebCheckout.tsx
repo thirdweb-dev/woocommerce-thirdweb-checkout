@@ -11,6 +11,7 @@ interface ThirdwebCheckoutProps {
         seller: string;
         chainId: number;
         tokenAddress?: string;
+        theme?: string;
         description?: string;
         supportedTokens?: Array<{ symbol: string; address: string }>;
     };
@@ -38,7 +39,6 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
     onPaymentSetup,
     emitResponse,
 }) => {
-    const [txHash, setTxHash] = useState<string | null>(null);
     const [paymentComplete, setPaymentComplete] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -55,6 +55,7 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
             chain: settings.chainId.toString(),
             amount: amount,
             seller: settings.seller,
+            theme: settings.theme || 'dark',
         });
 
         // Add token address if provided
@@ -90,17 +91,6 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
 
             // Handle success messages
             if (data.type === 'success') {
-                // Extract transaction hash if available
-                const transactionHash = 
-                    data.transactionHash || 
-                    data.txHash || 
-                    data.hash ||
-                    null;
-                
-                if (transactionHash) {
-                    setTxHash(transactionHash);
-                }
-                
                 setPaymentComplete(true);
                 setError(null);
             } 
@@ -125,15 +115,10 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
     useEffect(() => {
         const unsubscribe = onPaymentSetup(() => {
             if (paymentComplete) {
-                // Build payment method data - only include tx_hash if it exists
+                // Build payment method data
                 const paymentMethodData: Record<string, string> = {
                     thirdweb_chain_id: String(settings.chainId),
                 };
-                
-                // Only add tx_hash if we have one (it's optional)
-                if (txHash) {
-                    paymentMethodData.thirdweb_tx_hash = txHash;
-                }
                 
                 return {
                     type: emitResponse.responseTypes.SUCCESS,
@@ -158,7 +143,7 @@ export const ThirdwebCheckout: React.FC<ThirdwebCheckoutProps> = ({
         });
 
         return unsubscribe;
-    }, [onPaymentSetup, emitResponse, paymentComplete, txHash, error, settings.chainId]);
+    }, [onPaymentSetup, emitResponse, paymentComplete, error, settings.chainId]);
 
     return (
         <div className="thirdweb-checkout-container">
