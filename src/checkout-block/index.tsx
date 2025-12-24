@@ -79,8 +79,8 @@ const Edit = () => {
  * Check if this payment method can be used
  */
 const canMakePayment = () => {
-    // Verify required settings are configured
-    return !!(settings.clientId && settings.seller && settings.chainId);
+    // Verify required settings are configured (no Client ID needed for iframe widget)
+    return !!(settings.seller && settings.chainId);
 };
 
 /**

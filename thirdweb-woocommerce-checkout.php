@@ -153,22 +153,17 @@ add_action('admin_notices', function() {
         <p><strong>Follow these steps to start accepting stablecoin payments:</strong></p>
         <ol style="margin-left: 20px; line-height: 1.8;">
             <li>
-                <strong>Create a thirdweb account:</strong>
-                Go to <a href="https://thirdweb.com/dashboard" target="_blank">thirdweb.com/dashboard</a>
-                to sign up or log in
-            </li>
-            <li>
-                <strong>Create a new project:</strong>
-                In the dashboard, create a new project and copy your <strong>Client ID</strong>
-            </li>
-            <li>
-                <strong>Get your project wallet address:</strong>
-                From your project, copy the <strong>wallet address</strong> that will receive funds
+                <strong>Get your wallet address:</strong>
+                Use any Ethereum-compatible wallet (MetaMask, Coinbase Wallet, etc.) and copy your <strong>wallet address</strong> that will receive payments
             </li>
             <li>
                 <strong>Configure the plugin:</strong>
                 Go to <a href="<?php echo esc_url($settings_url); ?>">WooCommerce → Settings → Payments → Stablecoin Payment</a>
-                and enter your Client ID and wallet address
+                and enter your wallet address and preferred blockchain network
+            </li>
+            <li>
+                <strong>No thirdweb account needed!</strong>
+                The plugin uses thirdweb's hosted checkout widget, so you don't need to sign up or get a Client ID.
             </li>
         </ol>
         <p>
