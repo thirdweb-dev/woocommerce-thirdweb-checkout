@@ -181,6 +181,9 @@ You can verify payments by:
 
 == Changelog ==
 
+= 1.1.0 - 2024-12-15 =
+* Now using thirdweb checkout widget iframe
+
 = 1.0.0 - 2024-12-15 =
 * Initial release
 * Support for USDC and USDT payments
